@@ -157,8 +157,9 @@ public class CameraHelper implements ICamera{
         if(scale < 1.0f)
             scale = 1.0f;
         if(scale < mMaxZoom) {
-            int cropW = mZoomSize.getWidth() - (int)(mZoomSize.getWidth()/scale);
-            int cropH = mZoomSize.getHeight() - (int)(mZoomSize.getHeight()/scale);
+
+            int cropW = (int)((mZoomSize.getWidth()/(mMaxZoom*2.6))*scale);
+            int cropH = (int)((mZoomSize.getHeight()/(mMaxZoom*2.6))*scale);
 
             Rect zoom = new Rect(cropW, cropH,
                     mZoomSize.getWidth() - cropW,
@@ -464,20 +465,31 @@ public class CameraHelper implements ICamera{
 
             mPreviewSession.stopRepeating();
             mPreviewSession.abortCaptures();
-            mPreviewSession.capture(mPreviewBuilder.build(), new CameraCaptureSession.CaptureCallback() {
+            //兼容华为这傻逼摄像头,需要延迟后才行
+            mBackgroundHandler.post(new Runnable() {
                 @Override
-                public void onCaptureCompleted(CameraCaptureSession session,
-                                               CaptureRequest request,
-                                               TotalCaptureResult result) {
-                    //重新启动预览界面
-                 //   startPreview();
+                public void run() {
+                    try {
+                        Thread.sleep(200);
+                        mPreviewSession.capture(mPreviewBuilder.build(), new CameraCaptureSession.CaptureCallback() {
+                            @Override
+                            public void onCaptureCompleted(CameraCaptureSession session,
+                                                           CaptureRequest request,
+                                                           TotalCaptureResult result) {
+                                //重新启动预览界面
+                                //   startPreview();
+                            }
+                        }, mBackgroundHandler);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
                 }
-            }, null);
+            });
+
         } catch (CameraAccessException e) {
             e.printStackTrace();
             return false;
         }
-
         return true;
     }
 

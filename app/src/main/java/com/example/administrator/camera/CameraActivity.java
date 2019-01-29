@@ -19,7 +19,6 @@ import android.os.Bundle;
 import android.support.v7.widget.LinearLayoutManager;
 import android.util.Log;
 import android.view.MotionEvent;
-import android.view.ScaleGestureDetector;
 import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
@@ -157,8 +156,7 @@ IVideoControl.PlayStateListener{
 
     private MenuAdapter mMenuAdapter;
 
-    private ScaleGestureDetector mScaleGestureDetector;
-    private CameraScaleDetector mCameraScaleDetector;
+    private CameraTouch mCameraTouch;
 
     /**
      * 视频播放时模式下的视频路径
@@ -283,13 +281,23 @@ IVideoControl.PlayStateListener{
                 }
             }
         });
-        mCameraScaleDetector = new CameraScaleDetector();
-        mScaleGestureDetector = new ScaleGestureDetector(this, mCameraScaleDetector);
+        mCameraTouch = new CameraTouch();
 
         textureView.setOnTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
-                mScaleGestureDetector.onTouchEvent(event);
+                switch (event.getAction())
+                {
+                    case MotionEvent.ACTION_DOWN:
+                        mCameraTouch.onScaleStart(event);
+                        break;
+                    case MotionEvent.ACTION_MOVE:
+                        mCameraTouch.onScale(event);
+                        break;
+                    case MotionEvent.ACTION_UP:
+                        mCameraTouch.onScaleEnd(event);
+                        break;
+                }
                 return true;
             }
         });
@@ -452,7 +460,7 @@ IVideoControl.PlayStateListener{
     @Override
     protected void onPause() {
         super.onPause();
-        if(NOW_MODE == CAMERA_MODE) {
+        if(MODE == CAMERA_MODE) {
             if (TEXTURE_STATE == TEXTURE_PREVIEW_STATE) {
                 cameraHelper.closeCamera();
                 cameraHelper.stopBackgroundThread();
@@ -687,7 +695,7 @@ IVideoControl.PlayStateListener{
             mVideoPlayer.stop();
             cameraHelper.startBackgroundThread();
             cameraHelper.openCamera(mNowCameraType);
-            mCameraScaleDetector.resetScale();  //重新打开摄像头重置一下放大倍数
+            mCameraTouch.resetScale();  //重新打开摄像头重置一下放大倍数
             File file = new File(getVideoFilePath(this));
             if(file.exists())
                 file.delete();
@@ -830,32 +838,61 @@ IVideoControl.PlayStateListener{
         return retStr;
     }
 
-    private class CameraScaleDetector implements ScaleGestureDetector.OnScaleGestureListener
+    private class CameraTouch
     {
-        private float mScale = 1.0f;
         private float mOldScale = 1.0f;
+        private float mScale;
+        private float mFirstDistance;
 
-        @Override
-        public boolean onScale(ScaleGestureDetector detector) {
-            mScale = mOldScale*detector.getScaleFactor();
-            cameraHelper.cameraZoom(mScale);
-            return false;
+        public void onScale(MotionEvent event)
+        {
+            if(event.getPointerCount() == 2)
+            {
+                if(mFirstDistance == 0)
+                    mFirstDistance = distance(event);
+
+                float distance = distance(event);
+                float scale;
+                if(distance > mFirstDistance)
+                    scale = (distance - mFirstDistance) / 100;
+                else {
+                    scale = distance / mFirstDistance;
+
+                }
+                mScale = scale*mOldScale;
+                cameraHelper.cameraZoom(mScale);
+            }
         }
 
-        @Override
-        public boolean onScaleBegin(ScaleGestureDetector detector) {
-            return true;
+        public void onScaleStart(MotionEvent event)
+        {
+            mFirstDistance = 0;
         }
 
-        @Override
-        public void onScaleEnd(ScaleGestureDetector detector) {
-            mOldScale = mScale;
+        public void onScaleEnd(MotionEvent event)
+        {
+            if(mScale < 1.0f)
+                mOldScale = 1.0f;
+            else
+                mOldScale = mScale;
         }
 
         public void resetScale()
         {
             mOldScale = 1.0f;
-            mScale = 1.0f;
+        }
+
+        /**
+         * 计算两个手指间的距离
+         *
+         * @param event
+         * @return
+         */
+        private float distance(MotionEvent event) {
+            float dx = event.getX(1) - event.getX(0);
+            float dy = event.getY(1) - event.getY(0);
+            /** 使用勾股定理返回两点之间的距离 */
+            return (float) Math.sqrt(dx * dx + dy * dy);
         }
     }
 }
