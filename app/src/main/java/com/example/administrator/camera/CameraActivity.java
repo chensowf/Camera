@@ -873,6 +873,8 @@ IVideoControl.PlayStateListener{
         {
             if(mScale < 1.0f)
                 mOldScale = 1.0f;
+            else if(mScale > cameraHelper.getMaxZoom())
+                mOldScale = cameraHelper.getMaxZoom();
             else
                 mOldScale = mScale;
         }

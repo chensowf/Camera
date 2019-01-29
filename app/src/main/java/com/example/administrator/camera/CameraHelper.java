@@ -617,6 +617,15 @@ public class CameraHelper implements ICamera{
     }
 
     /**
+     * 获取摄像头最大的缩放
+     * @return
+     */
+    public float getMaxZoom()
+    {
+        return mMaxZoom;
+    }
+
+    /**
      * 异步保存照片
      */
     private class PhotoSaver implements Runnable
