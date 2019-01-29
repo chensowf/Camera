@@ -71,16 +71,19 @@ public class AutoFitTextureView extends TextureView{
 
         float mRatio = (float) mRatioWidth / (float) mRatioHeight;   //算出相机的缩放比例
         if(mRatio < 1.0)
-            return;
-        float h = getWidth()/mRatio;
-        float scale;
-        if (h > getHeight())
-            scale = (float)getHeight() / h;
-        else
-            scale =  h / (float)getHeight();
+        {
+            setAspectRatio(width, height);
+        }else {
+            float h = getWidth() / mRatio;
+            float scale;
+            if (h > getHeight())
+                scale = (float) getHeight() / h;
+            else
+                scale = h / (float) getHeight();
 
-        Matrix matrix = new Matrix();
-        matrix.postScale(1, scale, getWidth() / 2, getHeight() / 2);
-        setTransform(matrix);
+            Matrix matrix = new Matrix();
+            matrix.postScale(1, scale, getWidth() / 2, getHeight() / 2);
+            setTransform(matrix);
+        }
     }
 }
