@@ -842,7 +842,9 @@ IVideoControl.PlayStateListener{
     {
         private float mOldScale = 1.0f;
         private float mScale;
-        private float mFirstDistance;
+        private float mSpan = 0;
+        private float mOldSpan;
+        private float mFirstDistance = 0;
 
         public void onScale(MotionEvent event)
         {
@@ -852,14 +854,23 @@ IVideoControl.PlayStateListener{
                     mFirstDistance = distance(event);
 
                 float distance = distance(event);
-                float scale;
-                if(distance > mFirstDistance)
-                    scale = (distance - mFirstDistance) / 100;
-                else {
-                    scale = distance / mFirstDistance;
-
+                float scale = 1.0f;
+                if(distance > mFirstDistance) {
+                    scale = (distance - mFirstDistance) / 80;
+                    //  if(scale <= mSpan) {
+                    scale = scale + mSpan;
+                    //  }
+                    mOldSpan = scale;
+                    mScale = scale*1.0f;
                 }
-                mScale = scale*mOldScale;
+                else if(distance < mFirstDistance){
+                    scale = distance / mFirstDistance;
+                    mOldSpan = scale;
+                    mScale = scale*mOldScale;
+                }else
+                {
+                    return;
+                }
                 cameraHelper.cameraZoom(mScale);
             }
         }
@@ -877,6 +888,7 @@ IVideoControl.PlayStateListener{
                 mOldScale = cameraHelper.getMaxZoom();
             else
                 mOldScale = mScale;
+            mSpan = mOldSpan;
         }
 
         public void resetScale()
