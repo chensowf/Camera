@@ -52,6 +52,18 @@ public class CameraHelper implements ICamera{
         ORIENTATIONS.append(Surface.ROTATION_270, 180);
     }
 
+    /**
+     * 拍照得回调
+     */
+    private TakePhotoListener mTakePhotoListener;
+
+    /**
+     * 设备旋转方向
+     */
+    private int mDeviceRotation;
+
+    private AtomicBoolean mIsCameraOpen;
+
     private CameraManager mCameraManager;
 
     /**
@@ -142,6 +154,7 @@ public class CameraHelper implements ICamera{
     public CameraHelper(Context context)
     {
         this.mContext = context;
+        mIsCameraOpen = new AtomicBoolean(false);
         CameraManager cameraManager = (CameraManager)context.getSystemService(Context.CAMERA_SERVICE);
         mCameraManager = cameraManager;
         try {
@@ -216,6 +229,9 @@ public class CameraHelper implements ICamera{
     @Override
     public boolean openCamera(CameraType cameraType) {
 
+        if(mIsCameraOpen.get())
+            return true;
+        mIsCameraOpen.set(true);
         mRect = null;
         this.mNowCameraType = cameraType;
         int cameraTypeId;
@@ -300,11 +316,16 @@ public class CameraHelper implements ICamera{
 
     @Override
     public void closeCamera() {
+        mIsCameraOpen.set(false);
         closePreviewSession();
         if(mCameraDevice != null)
         {
             mCameraDevice.close();
             mCameraDevice = null;
+        }
+        if(mImageReader != null) {
+            mImageReader.close();
+            mImageReader = null;
         }
     }
 
@@ -317,15 +338,14 @@ public class CameraHelper implements ICamera{
     @Override
     public boolean startPreview() {
         if(mBackgroundHandler == null)
-            new Throwable("BackgroundHandler not start, should call startBackgroundThread");
-
-        initPreviewSize();
-
-        SurfaceTexture surfaceTexture = mTextureView.getSurfaceTexture();
-        surfaceTexture.setDefaultBufferSize(mLargest.getWidth(),mLargest.getHeight());
-        mSurface = new Surface(surfaceTexture);
+            return false;
 
         try {
+            initPreviewSize();
+
+            SurfaceTexture surfaceTexture = mTextureView.getSurfaceTexture();
+            surfaceTexture.setDefaultBufferSize(mLargest.getWidth(),mLargest.getHeight());
+            mSurface = new Surface(surfaceTexture);
             mPreviewBuilder = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);  //创建一个预览请求
             mPreviewBuilder.addTarget(mSurface); //添加预览输出目标画面
         //    Surface photoSurface = mImageReader.getSurface();
@@ -455,8 +475,7 @@ public class CameraHelper implements ICamera{
             mPreviewBuilder.set(CaptureRequest.CONTROL_AF_MODE,
                     CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
 
-            int rotation = ((Activity)mContext).getWindowManager().getDefaultDisplay().getRotation();
-            mPreviewBuilder.set(CaptureRequest.JPEG_ORIENTATION, getOrientation(rotation));
+            mPreviewBuilder.set(CaptureRequest.JPEG_ORIENTATION, getOrientation(mDeviceRotation));
 
             setAutoFlash(); //开启自动闪光灯
 
@@ -510,6 +529,11 @@ public class CameraHelper implements ICamera{
     @Override
     public void setTextureView(TextureView textureView) {
         this.mTextureView = textureView;
+    }
+
+    @Override
+    public void setTakePhotoListener(TakePhotoListener mTakePhotoListener) {
+        this.mTakePhotoListener = mTakePhotoListener;
     }
 
     /**
@@ -626,6 +650,16 @@ public class CameraHelper implements ICamera{
     }
 
     /**
+     * 设置当前相机位置
+     * @param rotation
+     */
+    public void setDeviceRotation(int rotation)
+    {
+        this.mDeviceRotation = rotation;
+    }
+
+
+    /**
      * 异步保存照片
      */
     private class PhotoSaver implements Runnable
@@ -668,6 +702,8 @@ public class CameraHelper implements ICamera{
                         e.printStackTrace();
                     }
                 }
+                if(mTakePhotoListener != null)
+                    mTakePhotoListener.onTakePhotoFinish();
             }
         }
     }

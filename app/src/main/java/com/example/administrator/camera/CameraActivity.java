@@ -8,6 +8,10 @@ import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Point;
 import android.graphics.SurfaceTexture;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.media.MediaMetadataRetriever;
 import android.media.MediaRecorder;
 import android.os.Build;
@@ -42,7 +46,7 @@ import io.reactivex.functions.Consumer;
 import io.reactivex.functions.Function;
 
 public class CameraActivity extends AppCompatActivity implements IVideoControl.PlaySeekTimeListener,
-IVideoControl.PlayStateListener{
+IVideoControl.PlayStateListener,SensorEventListener, ICamera.TakePhotoListener {
 
     /**
      * 摄像头模式
@@ -247,6 +251,7 @@ IVideoControl.PlayStateListener{
     private void initCameraMode()
     {
         cameraHelper = new CameraHelper(this);
+        cameraHelper.setTakePhotoListener(this);
         mVideoPlayer.setLoopPlay(true);
 
         if(ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
@@ -303,6 +308,7 @@ IVideoControl.PlayStateListener{
         });
 
         cutPadding();
+        registerSensor();
     }
 
     /**
@@ -462,8 +468,7 @@ IVideoControl.PlayStateListener{
         super.onPause();
         if(MODE == CAMERA_MODE) {
             if (TEXTURE_STATE == TEXTURE_PREVIEW_STATE) {
-                cameraHelper.closeCamera();
-                cameraHelper.stopBackgroundThread();
+                closeCamera();
             } else if (TEXTURE_STATE == TEXTURE_PLAY_STATE) {
                 mVideoPlayer.pause();
             }
@@ -526,11 +531,7 @@ IVideoControl.PlayStateListener{
         if(NOW_MODE == VIDEO_TAKE_PHOTO)
         {
             if(cameraHelper.takePhote(getPhotoFilePath(this),ICamera.MediaType.JPEG)) {
-                hindSwitchCamera();
-                hindMenu();
-                showRecordEndView();
-                mRecordImageButton.setVisibility(View.GONE);
-                TEXTURE_STATE = TEXTURE_PHOTO_STATE;
+
             }
         }
     }
@@ -656,8 +657,7 @@ IVideoControl.PlayStateListener{
      */
     public void playVideo()
     {
-        cameraHelper.closeCamera();
-        cameraHelper.stopBackgroundThread();
+        closeCamera();
         mVideoPlayer.setDataSourceAndPlay(getVideoFilePath(this));
         isPlaying = true;
 
@@ -733,9 +733,36 @@ IVideoControl.PlayStateListener{
                 + "image" + ".jpeg";
     }
 
+    /**
+     * 关闭摄像头
+     */
+    private void closeCamera()
+    {
+        cameraHelper.closeCamera();
+        cameraHelper.stopBackgroundThread();
+    }
+
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        if(MODE == CAMERA_MODE)
+        {
+            //如果正在录像，就停止并且删除
+            if(TEXTURE_STATE == TEXTURE_RECORD_STATE)
+            {
+                cameraHelper.stopVideoRecord();
+                closeCamera();
+                deleteVideoOrPicture();
+            }
+
+            if(TEXTURE_STATE == TEXTURE_PHOTO_STATE)
+            {
+                closeCamera();
+                deleteVideoOrPicture();
+            }
+        }
+        if(mSensorManager != null)
+            mSensorManager.unregisterListener(this);
         if(isPlaying)
             mVideoPlayer.stop();
         mVideoPlayer.destroy();
@@ -837,6 +864,63 @@ IVideoControl.PlayStateListener{
             retStr = "" + i;
         return retStr;
     }
+
+    /**
+     * 注册陀螺仪传感器
+     */
+    private SensorManager mSensorManager;
+    private Sensor mSensor;
+    private void registerSensor()
+    {
+        mSensorManager = (SensorManager)getSystemService(Context.SENSOR_SERVICE);
+        mSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_ORIENTATION);
+        if(mSensor == null)
+            return;
+        mSensorManager.registerListener(this,mSensor,Sensor.TYPE_ORIENTATION);
+    }
+
+    @Override
+    public void onSensorChanged(SensorEvent event) {
+        float x = event.values[0];
+        float z = event.values[2];
+        float y = event.values[1];
+        if(z > 55.0f)
+        {
+            //向右横屏
+            cameraHelper.setDeviceRotation(1);
+        }else if(z < -55.0f)
+        {
+            //向左横屏
+            cameraHelper.setDeviceRotation(3);
+        }else if(y > 60.0f){
+            //是倒竖屏
+            cameraHelper.setDeviceRotation(2);
+        }else
+        {
+            //正竖屏
+            cameraHelper.setDeviceRotation(0);
+        }
+    }
+
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {
+
+    }
+
+    @Override
+    public void onTakePhotoFinish() {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                hindSwitchCamera();
+                hindMenu();
+                showRecordEndView();
+                mRecordImageButton.setVisibility(View.GONE);
+                TEXTURE_STATE = TEXTURE_PHOTO_STATE;
+            }
+        });
+    }
+
 
     private class CameraTouch
     {

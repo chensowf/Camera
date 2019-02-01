@@ -66,6 +66,7 @@ public interface ICamera {
 
     void setTextureView(TextureView textureView);
 
+    void setTakePhotoListener(TakePhotoListener mTakePhotoLisetener);
 
     /**
      * 摄像头模式类型
@@ -93,5 +94,12 @@ public interface ICamera {
         FRONT,
         BACK,
         USB
+    }
+
+    /**
+     * 拍照成像回调
+     */
+    interface TakePhotoListener{
+        void onTakePhotoFinish();
     }
 }
