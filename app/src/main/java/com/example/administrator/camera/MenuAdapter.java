@@ -19,10 +19,12 @@ public class MenuAdapter extends RecyclerView.Adapter<MenuAdapter.ItemViewHolder
     private Context context;
     private View view;
     private List<String> ages;
+    private AutoLocateHorizontalView recyclerView;
 
-    public MenuAdapter(Context context, List<String> ages){
+    public MenuAdapter(Context context, List<String> ages, AutoLocateHorizontalView recyclerView){
         this.context = context;
         this.ages = ages;
+        this.recyclerView = recyclerView;
     }
 
     @Override
@@ -47,21 +49,33 @@ public class MenuAdapter extends RecyclerView.Adapter<MenuAdapter.ItemViewHolder
     }
 
     @Override
-    public void onViewSelected(boolean isSelected,int pos, RecyclerView.ViewHolder holder,int itemWidth) {
+    public void onViewSelected(boolean isSelected, int pos, RecyclerView.ViewHolder holder, int itemWidth) {
         if(isSelected) {
             ((ItemViewHolder) holder).tvAge.setTextSize(TypedValue.COMPLEX_UNIT_SP,16);
             ((ItemViewHolder) holder).tvAge.setTextColor(Color.WHITE);
+            ((ItemViewHolder) holder).tvAge.setAlpha(1.0f);
         }else{
             ((ItemViewHolder) holder).tvAge.setTextSize(TypedValue.COMPLEX_UNIT_SP,15);
             ((ItemViewHolder) holder).tvAge.setTextColor(Color.rgb(0xfe,0xfe,0xfe));
+            ((ItemViewHolder) holder).tvAge.setAlpha(0.5f);
         }
     }
 
-    static class ItemViewHolder extends RecyclerView.ViewHolder{
+    class ItemViewHolder extends RecyclerView.ViewHolder{
         TextView tvAge;
         ItemViewHolder(View itemView) {
             super(itemView);
-            tvAge = (TextView)itemView.findViewById(R.id.tv_age);
+            tvAge = itemView.findViewById(R.id.tv_age);
+            tvAge.setTag(this);
+            tvAge.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    ItemViewHolder itemViewHolder = (ItemViewHolder)v.getTag();
+                    int position = recyclerView.getChildAdapterPosition(itemViewHolder.itemView);
+                    position--;
+                    recyclerView.moveToPosition(position);
+                }
+            });
         }
     }
 }

@@ -1,12 +1,15 @@
 package com.example.administrator.camera;
 
+import android.content.Context;
 import android.media.MediaPlayer;
+import android.net.Uri;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.view.Surface;
 
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
+
 
 public class VideoPlayer implements IVideoControl {
 
@@ -22,6 +25,8 @@ public class VideoPlayer implements IVideoControl {
 
     private AtomicBoolean mIsNowSeekTime;
 
+    private boolean mIsLoop = false;
+
     public VideoPlayer()
     {
         mMediaPlayer = new MediaPlayer();
@@ -33,7 +38,43 @@ public class VideoPlayer implements IVideoControl {
 
     public void setLoopPlay(boolean isLoop)
     {
-        mMediaPlayer.setLooping(isLoop);
+   //     mMediaPlayer.setLooping(isLoop);
+        this.mIsLoop = isLoop;
+    }
+
+    public void setDataSourceAndPlay(Context context, Uri uri)
+    {
+        try {
+            mMediaPlayer.setDataSource(context,uri);
+            mMediaPlayer.setSurface(this.mSurface);
+            mMediaPlayer.setOnErrorListener(new MediaPlayer.OnErrorListener() {
+                @Override
+                public boolean onError(MediaPlayer mp, int what, int extra) {
+                    stopVideoSeekTime();
+                    return false;
+                }
+            });
+            mMediaPlayer.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
+                @Override
+                public void onPrepared(MediaPlayer mp) {
+                    play();
+                    startVideoSeekTime();
+                }
+            });
+            mMediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+                @Override
+                public void onCompletion(MediaPlayer mp) {
+                    if(mPlayStateListener != null)
+                        mPlayStateListener.onCompletionListener();
+                    if(mIsLoop)
+                        play();
+                }
+            });
+            mMediaPlayer.prepareAsync();
+        } catch (IOException e) {
+            e.printStackTrace();
+            mMediaPlayer = null;
+        }
     }
 
     public void setDataSourceAndPlay(String path)
@@ -61,6 +102,8 @@ public class VideoPlayer implements IVideoControl {
                 public void onCompletion(MediaPlayer mp) {
                     if(mPlayStateListener != null)
                         mPlayStateListener.onCompletionListener();
+                    if(mIsLoop)
+                        play();
                 }
             });
             mMediaPlayer.prepareAsync();
@@ -107,7 +150,7 @@ public class VideoPlayer implements IVideoControl {
     }
 
     @Override
-    public void setPlaySeekTimeListener(PlaySeekTimeListener playSeekTimeListener) {
+    public void setPlaySeekTimeListener(IVideoControl.PlaySeekTimeListener playSeekTimeListener) {
         this.mPlaySeekTimeListener = playSeekTimeListener;
     }
 
@@ -119,6 +162,10 @@ public class VideoPlayer implements IVideoControl {
     public void setVideoPlayWindow(Surface surface)
     {
         this.mSurface = surface;
+    }
+
+    public boolean isPlaying(){
+        return mMediaPlayer!=null && mMediaPlayer.isPlaying();
     }
 
     /**
@@ -135,7 +182,7 @@ public class VideoPlayer implements IVideoControl {
                 while (mIsNowSeekTime.get())
                 {
                     try {
-                        Thread.sleep(500);
+                        Thread.sleep(20);
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
@@ -165,6 +212,7 @@ public class VideoPlayer implements IVideoControl {
                 mMediaPlayer = null;
             }
         }
+        mSurface.release();
     }
 
 

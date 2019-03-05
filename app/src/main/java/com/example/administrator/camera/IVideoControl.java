@@ -34,7 +34,7 @@ public interface IVideoControl {
 
     interface PlaySeekTimeListener
     {
-        void onSeekTime(int allTime,int time);
+        void onSeekTime(int allTime, int time);
     }
 
     /**

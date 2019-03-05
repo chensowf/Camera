@@ -4,6 +4,8 @@ import android.util.Size;
 import android.view.Surface;
 import android.view.TextureView;
 
+import java.io.File;
+
 
 public interface ICamera {
 
@@ -35,7 +37,7 @@ public interface ICamera {
     /**
      * 停止预览
      */
-    void stopPreview();
+    void resumePreview();
 
     /**
      * 开始视频的录制
@@ -54,7 +56,7 @@ public interface ICamera {
      * @param path 存储路径
      * @param mediaType  文件类型
      */
-    boolean takePhote(String path, MediaType mediaType);
+    boolean takePhone(String path, MediaType mediaType);
 
     /**
      * 获取预览大小
@@ -66,7 +68,20 @@ public interface ICamera {
 
     void setTextureView(TextureView textureView);
 
-    void setTakePhotoListener(TakePhotoListener mTakePhotoLisetener);
+    void setTakePhotoListener(TakePhotoListener mTakePhotoListener);
+
+    void setCameraReady(CameraReady mCameraReady);
+
+    void flashSwitchState(FlashState mFlashState);
+
+    void setCameraState(CameraMode cameraMode);
+
+    /**
+     * 手动请求对焦
+     * @param x
+     * @param y
+     */
+    void requestFocus(float x, float y);
 
     /**
      * 摄像头模式类型
@@ -97,9 +112,21 @@ public interface ICamera {
     }
 
     /**
-     * 拍照成像回调
+     * 灯光状态
      */
+    enum FlashState
+    {
+        CLOSE,
+        AUTO,
+        OPEN
+    }
+
     interface TakePhotoListener{
-        void onTakePhotoFinish();
+        void onTakePhotoFinish(File file, int photoRotation, int width, int height);
+    }
+
+    interface CameraReady
+    {
+        void onCameraReady();
     }
 }
